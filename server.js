@@ -1,3 +1,5 @@
+yaml = require "node-yaml"
+
 // database is let instead of const to allow us to modify it in test.js
 let database = {
   users: {},
