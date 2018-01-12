@@ -1,13 +1,10 @@
-yaml = require "node-yaml"
+const yamlWrite = require('write-yaml');
+const yamlRead = require('js-yaml');
+const fs = require('fs');
 
 // database is let instead of const to allow us to modify it in test.js
-let database = {
-  users: {},
-  articles: {},
-  nextArticleId: 1,
-  comments: {},
-  nextCommentId: 1
-};
+
+let database = loadDatabase();
 
 const routes = {
   '/users': {
@@ -86,6 +83,8 @@ function getOrCreateUser(url, request) {
     };
     database.users[username] = user;
 
+    saveDatabase(database);
+
     response.body = {user: user};
     response.status = 201;
   } else {
@@ -148,6 +147,8 @@ function createArticle(url, request) {
     database.articles[article.id] = article;
     database.users[article.username].articleIds.push(article.id);
 
+    saveDatabase(database);
+
     response.body = {article: article};
     response.status = 201;
   } else {
@@ -171,6 +172,8 @@ function updateArticle(url, request) {
     savedArticle.title = requestArticle.title || savedArticle.title;
     savedArticle.url = requestArticle.url || savedArticle.url;
 
+    saveDatabase(database);
+
     response.body = {article: savedArticle};
     response.status = 200;
   }
@@ -193,6 +196,9 @@ function deleteArticle(url, request) {
     });
     const userArticleIds = database.users[savedArticle.username].articleIds;
     userArticleIds.splice(userArticleIds.indexOf(id), 1);
+
+    saveDatabase(database);
+
     response.status = 204;
   } else {
     response.status = 400;
@@ -209,6 +215,8 @@ function upvoteArticle(url, request) {
 
   if (savedArticle && database.users[username]) {
     savedArticle = upvote(savedArticle, username);
+
+    saveDatabase(database);
 
     response.body = {article: savedArticle};
     response.status = 200;
@@ -227,6 +235,8 @@ function downvoteArticle(url, request) {
 
   if (savedArticle && database.users[username]) {
     savedArticle = downvote(savedArticle, username);
+
+    saveDatabase(database);
 
     response.body = {article: savedArticle};
     response.status = 200;
@@ -257,6 +267,8 @@ function createComment(url, request) {
     database.articles[comment.articleId].commentIds.push(comment.id)
     database.users[comment.username].commentIds.push(comment.id);
 
+    saveDatabase(database);
+
     response.body = {comment: comment};
     response.status = 201;
   } else {
@@ -279,6 +291,8 @@ function updateComment(url, request) {
   } else {
     savedComment.body = requestComment.body || savedComment.body;
 
+    saveDatabase(database);
+
     response.body = {comment: savedComment};
     response.status = 200;
   }
@@ -299,7 +313,8 @@ function deleteComment(url, request) {
     commentedArticleIds.splice(commentedArticleIds.indexOf(id), 1);
     commentUserIds.splice(commentUserIds.indexOf(id), 1);
 
-    ;
+    saveDatabase(database);
+
     response.status = 204;
   } else {
     response.status = 404;
@@ -316,6 +331,8 @@ function upvoteComment(url, request) {
 
   if (savedComment && database.users[username]) {
     savedComment = upvote(savedComment, username);
+
+    saveDatabase(database);
 
     response.body = {comment: savedComment};
     response.status = 200;
@@ -334,6 +351,8 @@ function downvoteComment(url, request) {
 
   if (savedComment && database.users[username]) {
     savedComment = downvote(savedComment, username);
+
+    saveDatabase(database);
 
     response.body = {comment: savedComment};
     response.status = 200;
@@ -365,6 +384,42 @@ function downvote(item, username) {
     item.downvotedBy.push(username);
   }
   return item;
+}
+
+function saveDatabase(updatedDatabase) {
+  yamlWrite('database.yml', updatedDatabase, function(err) {
+    // console.log(err);
+  });
+}
+
+function loadDatabase() {
+  try {
+    const config = yamlRead.safeLoad(fs.readFileSync('database.yml', 'utf8'));
+
+    if(isEmpty(config)) {
+      return(
+        database = {
+          users: {},
+          articles: {},
+          nextArticleId: 1,
+          comments: {},
+          nextCommentId: 1
+        }
+      );
+    }else {
+      return(config);
+    }
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+function isEmpty(obj) {
+    for(var key in obj) {
+        if(obj.hasOwnProperty(key))
+            return false;
+    }
+    return true;
 }
 
 // Write all code above this line.
